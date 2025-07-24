@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Charts - Eco TD Sequential Trader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            padding: 40px;
+            margin: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        canvas#matrix {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        h1, h2 {
+            color: #228B22;
+            font-weight: 600;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        p {
+            color: #cccccc;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        input, button, select {
+            background-color: #111111;
+            color: #ffffff;
+            border: 1px solid #228B22;
+            padding: 15px 30px; /* Larger for ease */
+            margin: 10px;
+            font-size: 18px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            position: relative;
+            z-index: 1;
+            cursor: pointer;
+        }
+        button:hover, select:hover {
+            background-color: #32CD32;
+            box-shadow: 0 0 12px rgba(50, 205, 50, 0.7);
+            transform: scale(1.05);
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #32CD32;
+            box-shadow: 0 0 8px rgba(50, 205, 50, 0.5);
+        }
+        #chartContainer {
+            margin: 30px auto;
+            max-width: 800px;
+            background: rgba(17, 17, 17, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #228B22;
+            position: relative;
+            z-index: 1;
+        }
+        .loading {
+            color: #32CD32;
+            font-style: italic;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #ff4500;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix"></canvas>
+    <h1>Stock Charts</h1>
+    <p>Enter or select a symbol for interactive price, volume, and RSI charts. Press Enter to load!</p>
+    
+    <input id="chartSymbol" placeholder="Enter symbol (e.g., AAPL)" size="25" autofocus aria-label="Stock symbol input" onkeydown="if(event.key === 'Enter') loadChart();">
+    <select id="suggestedSymbols" aria-label="Suggested symbols from top picks">
+        <option value="">-- Suggested from Top Picks --</option>
+    </select>
+    <button onclick="loadChart()" aria-label="Load chart">Load Chart</button>
+    <button onclick="window.location.href='index.html'" aria-label="Back to main page">Back to Main</button>
+    
+    <div id="chartContainer">
+        <canvas id="stockChart"></canvas>
+        <div id="chartOutput" class="loading">Enter a symbol and load chart.</div>
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%";
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+        const drops = Array.from({length: columns}, () => 1);
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#228B22';
+            ctx.font = fontSize + 'px monospace';
+            drops.forEach((y, x) => {
+                const text = matrix[Math.floor(Math.random() * matrix.length)];
+                ctx.fillText(text, x * fontSize, y * fontSize);
+                drops[x] = y * fontSize > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
+            });
+        }
+        setInterval(draw, 50);
+    </script>
+    <script>
+        // Populate suggested symbols (dummy for now; can sync with top picks if needed)
+        const suggested = ['AAPL', 'TSLA', 'AMZN', 'GOOGL'];
+        const select = document.getElementById('suggestedSymbols');
+        suggested.forEach(sym => {
+            const option = document.createElement('option');
+            option.value = sym;
+            option.text = sym;
+            select.add(option);
+        });
+        select.onchange = () => {
+            document.getElementById('chartSymbol').value = select.value;
+            loadChart();
+        };
+
+        async function loadChart() {
+            const symbol = document.getElementById("chartSymbol").value.trim().toUpperCase();
+            const outputDiv = document.getElementById("chartOutput");
+            outputDiv.innerHTML = '<span class="loading">Loading chart...</span>';
+
+            if (!symbol) {
+                outputDiv.innerHTML = '<span class="error">Enter or select a valid symbol.</span>';
+                return;
+            }
+
+            try {
+                const data = await fetchWithRetry(
+                    `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=6mo&interval=1d`
+                );
+                if (!data.chart || !data.chart.result) {
+                    throw new Error("Invalid symbol or no data – try AAPL!");
+                }
+                const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000).toLocaleDateString());
+                const closes = data.chart.result[0].indicators.quote[0].close;
+                const volumes = data.chart.result[0].indicators.quote[0].volume;
+                const rsi = calculateRSI(closes.slice(-50)); // Last 50 for RSI
+
+                const ctx = document.getElementById('stockChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timestamps,
+                        datasets: [
+                            { label: 'Price', data: closes, borderColor: '#228B22', yAxisID: 'y' },
+                            { label: 'Volume', data: volumes, borderColor: '#32CD32', yAxisID: 'y1', type: 'bar' },
+                            { label: 'RSI', data: rsi, borderColor: '#ff4500', yAxisID: 'y2' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { type: 'linear', display: true, position: 'left' },
+                            y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } },
+                            y2: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 }
+                        },
+                        plugins: {
+                            tooltip: { mode: 'index', intersect: false } // User-friendly tooltips
+                        }
+                    }
+                });
+                outputDiv.innerHTML = ''; // Clear loading
+            } catch (error) {
+                outputDiv.innerHTML = '<span class="error">' + error.message + '</span>';
+            }
+        }
+    </script>
+</body>
+</html>

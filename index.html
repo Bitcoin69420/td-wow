@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco TD Sequential Trader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            padding: 40px;
+            margin: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        h1, h2 {
+            color: #228B22;
+            font-weight: 600;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        p {
+            color: #cccccc;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        input, button {
+            background-color: #111111;
+            color: #ffffff;
+            border: 1px solid #228B22;
+            padding: 15px 30px; /* Larger for easier clicks */
+            margin: 10px;
+            font-size: 18px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            position: relative;
+            z-index: 1;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #32CD32;
+            box-shadow: 0 0 12px rgba(50, 205, 50, 0.7);
+            transform: scale(1.05); /* Subtle zoom for friendliness */
+        }
+        input:focus {
+            outline: none;
+            border-color: #32CD32;
+            box-shadow: 0 0 8px rgba(50, 205, 50, 0.5);
+        }
+        #topPicks, #output {
+            color: #ffffff;
+            margin: 30px auto;
+            max-width: 600px;
+            text-align: left;
+            background: rgba(17, 17, 17, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #228B22;
+            position: relative;
+            z-index: 1;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(34, 139, 34, 0.1);
+            border-radius: 4px;
+        }
+        .loading {
+            color: #32CD32;
+            font-style: italic;
+            animation: spin 1s linear infinite; /* Friendly spinner */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #ff4500;
+        }
+        #resetButton, #chartsButton, #refreshButton {
+            background-color: #111111;
+            color: #ffffff;
+            border: 1px solid #228B22;
+        }
+        #resetButton:hover, #chartsButton:hover, #refreshButton:hover {
+            background-color: #228B22;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix"></canvas>
+    <h1>Eco TD Sequential Trader</h1>
+    <p>Sustainable signals for ethical trading – harvest insights like a vegan.</p>
+    
+    <h2>Top 10 Stock Picks of the Day (Live Updated)</h2>
+    <button id="refreshButton" onclick="fetchTopPicks()" aria-label="Refresh top picks now">Refresh Picks</button>
+    <div id="topPicks" class="loading">Loading latest picks... (auto-updates every 5 min)</div>
+    
+    <h2>Deploy Eco Signals (with Indicators)</h2>
+    <p>Enter a stock symbol (e.g., AAPL) for analysis with TD Sequential, RSI, and SMA.</p>
+    <input id="symbol" placeholder="Enter symbol (e.g., AAPL)" size="25" autofocus aria-label="Stock symbol input">
+    <button onclick="fetchAndRunAlgorithm()" aria-label="Launch analysis">Launch Analysis</button>
+    <div id="output"></div>
+    
+    <button id="resetButton" onclick="resetOutputs()" aria-label="Clear all outputs">Clear Outputs</button>
+    <button id="chartsButton" onclick="window.location.href='charts.html'" aria-label="View interactive stock charts">View Stock Charts</button>
+    
+    <script src="script.js"></script>
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%";
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+        const drops = Array.from({length: columns}, () => 1);
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#228B22';
+            ctx.font = fontSize + 'px monospace';
+            drops.forEach((y, x) => {
+                const text = matrix[Math.floor(Math.random() * matrix.length)];
+                ctx.fillText(text, x * fontSize, y * fontSize);
+                drops[x] = y * fontSize > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
+            });
+        }
+        setInterval(draw, 50);
+    </script>
+    <script>
+        // Auto-update top picks every 5 minutes
+        fetchTopPicks();
+        setInterval(fetchTopPicks, 300000); // 5 min
+    </script>
+</body>
+</html>
