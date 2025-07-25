@@ -75,17 +75,18 @@ async function fetchTopPicks() {
 
         const meta = quoteData.chart.result[0].meta;
         const prices = historyData.chart.result[0].indicators.quote[0].close.filter(p => p !== null);
-        const volume = (historyData.chart.result[0].indicators.quote[0].volume.reduce((a, b) => a + b, 0) / prices.length).toLocaleString(); // Formatted with commas
-        const currentPrice = meta.regularMarketPrice || meta.chartPreviousClose;
+        const volume = (historyData.chart.result[0].indicators.quote[0].volume.reduce((a, b) => a + b, 0) / prices.length).toLocaleString();
+        const currentPrice = meta.regularMarketPrice || meta.chartPreviousClose || meta.previousClose;
         const previousClose = meta.previousClose || currentPrice;
         const percentGain = ((currentPrice - previousClose) / previousClose) * 100;
+        const formattedGain = percentGain >= 0 ? `+${percentGain.toFixed(2)}%` : `${percentGain.toFixed(2)}%`;
 
-        const tdScore = computeTDSequential(prices).length; // Number of signals
+        const tdScore = computeTDSequential(prices).length;
         const pickScore = percentGain + (parseInt(volume.replace(/,/g, '')) / 1000000) + tdScore;
 
-        picks.push({ symbol, percentGain: percentGain.toFixed(2), volume, tdScore, pickScore });
+        picks.push({ symbol, formattedGain, volume, tdScore, pickScore });
       } catch (e) {
-        // Silent skip – no console warn for UX
+        // Silent skip
       }
     }
     picks.sort((a, b) => b.pickScore - a.pickScore);
@@ -102,7 +103,7 @@ async function fetchTopPicks() {
       top10
         .map(
           (p) =>
-            `<li>${p.symbol}: ${p.percentGain}% gain, Vol: ${p.volume}, TD Score: ${p.tdScore}</li>`
+            `<li>${p.symbol}: ${p.formattedGain} gain, Vol: ${p.volume}, TD Score: ${p.tdScore}</li>`
         )
         .join("") +
       "</ul>";
