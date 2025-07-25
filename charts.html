@@ -6,6 +6,7 @@
     <title>Stock Charts - Eco TD Sequential Trader</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script> <!-- Zoom plugin for scrolling -->
     <style>
         body {
             background-color: #000000;
@@ -79,12 +80,16 @@
         .error {
             color: #ff4500;
         }
+        #autoUpdateToggle {
+            margin: 10px;
+            accent-color: #228B22; /* Green checkbox */
+        }
     </style>
 </head>
 <body>
     <canvas id="matrix"></canvas>
     <h1>Stock Charts</h1>
-    <p>Enter or select a symbol for interactive price, volume, and RSI charts. Press Enter to load!</p>
+    <p>Enter or select a symbol for interactive price, volume, and RSI charts. Scroll/zoom enabled! Press Enter to load.</p>
     
     <input id="chartSymbol" placeholder="Enter symbol (e.g., AAPL)" size="25" autofocus aria-label="Stock symbol input" onkeydown="if(event.key === 'Enter') loadChart();">
     <select id="suggestedSymbols" aria-label="Suggested symbols from top picks">
@@ -92,6 +97,7 @@
     </select>
     <button onclick="loadChart()" aria-label="Load chart">Load Chart</button>
     <button onclick="window.location.href='index.html'" aria-label="Back to main page">Back to Main</button>
+    <label for="autoUpdateToggle">Auto-Update Every 60s: <input type="checkbox" id="autoUpdateToggle" checked></label>
     
     <div id="chartContainer">
         <canvas id="stockChart"></canvas>
@@ -123,7 +129,10 @@
         setInterval(draw, 50);
     </script>
     <script>
-        // Populate suggested symbols (dummy for now; can sync with top picks if needed)
+        let chartInstance = null;
+        let autoUpdateInterval = null;
+
+        // Populate suggested symbols
         const suggested = ['AAPL', 'TSLA', 'AMZN', 'GOOGL'];
         const select = document.getElementById('suggestedSymbols');
         suggested.forEach(sym => {
@@ -135,6 +144,15 @@
         select.onchange = () => {
             document.getElementById('chartSymbol').value = select.value;
             loadChart();
+        };
+
+        const autoToggle = document.getElementById('autoUpdateToggle');
+        autoToggle.onchange = () => {
+            if (autoToggle.checked) {
+                autoUpdateInterval = setInterval(loadChart, 60000); // 60s
+            } else {
+                clearInterval(autoUpdateInterval);
+            }
         };
 
         async function loadChart() {
@@ -157,10 +175,11 @@
                 const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000).toLocaleDateString());
                 const closes = data.chart.result[0].indicators.quote[0].close;
                 const volumes = data.chart.result[0].indicators.quote[0].volume;
-                const rsi = calculateRSI(closes.slice(-50)); // Last 50 for RSI
+                const rsi = calculateRSI(closes.slice(-50));
 
+                if (chartInstance) chartInstance.destroy(); // Destroy old chart for smooth update
                 const ctx = document.getElementById('stockChart').getContext('2d');
-                new Chart(ctx, {
+                chartInstance = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: timestamps,
@@ -172,13 +191,24 @@
                     },
                     options: {
                         responsive: true,
+                        plugins: {
+                            zoom: {
+                                zoom: {
+                                    wheel: { enabled: true },
+                                    pinch: { enabled: true },
+                                    mode: 'xy'
+                                },
+                                pan: {
+                                    enabled: true,
+                                    mode: 'xy'
+                                }
+                            },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
                         scales: {
                             y: { type: 'linear', display: true, position: 'left' },
                             y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } },
                             y2: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 }
-                        },
-                        plugins: {
-                            tooltip: { mode: 'index', intersect: false } // User-friendly tooltips
                         }
                     }
                 });
@@ -187,6 +217,9 @@
                 outputDiv.innerHTML = '<span class="error">' + error.message + '</span>';
             }
         }
+
+        // Initial auto-update if toggled
+        if (autoToggle.checked) autoUpdateInterval = setInterval(loadChart, 60000);
     </script>
 </body>
 </html>
